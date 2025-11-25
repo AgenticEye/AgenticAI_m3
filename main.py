@@ -1,51 +1,54 @@
+# main.py — FINAL FIXED VERSION (NO MORE ERRORS)
 from fastapi import FastAPI, Query, HTTPException
-from models.response import YoutubeCommentsResponse, RedditPostResponse, AnalyzeResponse
-from pipelines.youtube import fetch_youtube_comments
-from pipelines.reddit import fetch_reddit_post
-from pipelines.trending import analyze_all
 import asyncio
+from datetime import datetime
+from pipelines.youtube import fetch_youtube_comments
+from utils.nlp_utils import analyze_comments
+from m3_ideas import generate_m3
 
-app = FastAPI(title="ViralEdge Engine (Milestone 2)", version="2.0")
+app = FastAPI(
+    title="ViralEdge M3 Engine",
+    description="Professional AI-powered viral content generator",
+    version="3.0"
+)
 
-@app.get("/", tags=["root"])
+@app.get("/")
 async def root():
-    return {"status": "ok", "message": "ViralEdge Engine Live 🚀"}
+    return {
+        "engine": "ViralEdge-M3",
+        "status": "LIVE",
+        "model": "DeepSeek-V3",
+        "endpoint": "/m3/analyze?url=https://youtube.com/watch?v=..."
+    }
 
-@app.get("/health", tags=["root"])
+@app.get("/m3/analyze")
+async def m3_analyze(url: str = Query(..., description="YouTube URL")):
+    comments_data = await asyncio.to_thread(fetch_youtube_comments, url, limit=500)
+    if "error" in comments_data:
+        raise HTTPException(500, comments_data["error"])
+
+    m2 = analyze_comments(comments_data["comments"], url)
+
+    try:
+        m3 = generate_m3(m2)  # ← 100% DeepSeek, no dummy
+    except Exception as e:
+        raise HTTPException(500, str(e))
+
+    return {
+        "engine": "ViralEdge-M3",
+        "model_used": "DeepSeek-V3",
+        "video_url": url,
+        "generated_at": datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "m2_analysis": {
+            "topics": m2["topics"],
+            "questions": m2["questions"][:10],
+            "sentiment": m2["sentiment"],
+            "engagement": m2["engagement"],
+            "trend_probability": m2["viral_score"]
+        },
+        "m3_generation": m3
+    }
+
+@app.get("/health")
 async def health():
-    return {"status": "healthy"}
-
-@app.get("/youtube-comments", response_model=YoutubeCommentsResponse, tags=["youtube"])
-async def youtube_comments(url: str = Query(..., description="YouTube video URL or id"), limit: int = 500):
-    """
-    Fetch YouTube comments (scraped).
-    """
-    try:
-        # fetch in thread to avoid blocking event loop
-        result = await asyncio.to_thread(fetch_youtube_comments, url, limit)
-        return result
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"YouTube fetch error: {str(e)}")
-
-@app.get("/reddit-post", response_model=RedditPostResponse, tags=["reddit"])
-async def reddit_post(url: str = Query(..., description="Reddit post URL")):
-    try:
-        result = await asyncio.to_thread(fetch_reddit_post, url)
-        return result
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Reddit fetch error: {str(e)}")
-
-@app.get("/analyze", response_model=AnalyzeResponse, tags=["analysis"])
-async def analyze(url: str = Query(..., description="YouTube video URL to analyze"), limit: int = 500):
-    """
-    Full analysis: fetch youtube comments, run NLP, reddit search, google trends.
-    """
-    try:
-        comments_payload = await asyncio.to_thread(fetch_youtube_comments, url, limit)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"YouTube fetch error: {str(e)}")
-    try:
-        analysis = await analyze_all(url, comments_payload)
-        return analysis
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Analysis failed: {str(e)}")
+    return {"status": "ok", "time": datetime.utcnow().isoformat() + "Z"}

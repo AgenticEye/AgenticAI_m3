@@ -5,6 +5,8 @@ from pipelines.reddit import reddit_search
 from pipelines.google_trends import trends_for_terms
 import datetime
 import asyncio
+from config import CONFIG
+
 
 def compute_engagement_stats(comments: List[Dict[str,Any]]) -> Dict[str,Any]:
     total_likes = sum(c.get("likes", 0) for c in comments)
