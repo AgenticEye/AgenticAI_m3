@@ -5,13 +5,29 @@ from datetime import datetime
 from pipelines.youtube import fetch_youtube_comments
 from utils.nlp_utils import analyze_comments
 from m3_ideas import generate_m3
-
+import os
+from fastapi.middleware.cors import CORSMiddleware
 app = FastAPI(
     title="ViralEdge M3 Engine",
     description="Professional AI-powered viral content generator",
     version="3.0"
 )
 
+
+# Add CORS for frontend
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Allows Vercel, localhost, etc.
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Render port binding (fixes the error)
+if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 8000))  # Use Render's $PORT or fallback to 8000
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=port)  # Bind to 0.0.0.0 for Render
 @app.get("/")
 async def root():
     return {
