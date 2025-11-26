@@ -2,7 +2,7 @@ fastapi
 uvicorn[standard]
 pydantic==2.8
 python-dotenv
-youtube-comment-downloader>=0.2.3
+youtube-comment-downloader
 httpx
 requests
 spacy
